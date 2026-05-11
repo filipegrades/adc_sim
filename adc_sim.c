@@ -37,7 +37,8 @@
 // --- Enumeração para o Estado do Canal ADC ---
 typedef enum {
     ADC_CHANNEL_STATE_DISABLED,
-    ADC_CHANNEL_STATE_NORMAL
+    ADC_CHANNEL_STATE_NORMAL,
+    ADC_CHANNEL_STATE_SECURITY_ALERT
 } AdcChannelState_t;
 
 // --- Estrutura (Struct) para o Canal ADC ---
@@ -47,6 +48,7 @@ typedef struct {
     unsigned int      filteredValueADC;           // Valor filtrado (contagens ADC)
     float             filteredVoltage;             // Valor filtrado em Volts
     AdcChannelState_t state;                      // Estado atual do canal
+    unsigned int      securityLimit;          // Valor do limite de segurança do canal
 } AdcChannel_t;
 
 // --- Variável Global Única (apenas um canal) ---
@@ -115,7 +117,12 @@ void processAdcChannel(AdcChannel_t *pChannel)
     pChannel->filteredVoltage = convertADCToVoltage(pChannel->filteredValueADC);
 
     //5. Aqui deverá ser incluída a lógica de detecção de limiar excedido
-    pChannel->state = ADC_CHANNEL_STATE_NORMAL;
+    // Compara o valor filtrado com o limite de segurança, caso exceda o status é modificado para alerta de segurança
+    if(pChannel->filteredValueADC > pChannel->securityLimit)    
+    {
+        pChannel->state = ADC_CHANNEL_STATE_SECURITY_ALERT;
+    }
+    
 
 }
 
@@ -149,6 +156,11 @@ void addSampleToBuffer(AdcChannel_t *pChannel, unsigned int newSample)
 {
     pChannel->buffer[pChannel->currentIndex] = newSample;
     pChannel->currentIndex = (pChannel->currentIndex + 1U) % FILTER_BUFFER_SIZE;
+    // Caso o indice de controle do buffer seja igual a zero o status do canal é resetado para normal
+    if(pChannel->currentIndex == 0)
+    {
+        pChannel->state = ADC_CHANNEL_STATE_NORMAL;
+    }
 }
 
 // Calcula a média móvel das amostras no buffer.
